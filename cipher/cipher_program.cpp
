@@ -1,0 +1,83 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cryptopp/aes.h>            // Для алгоритма AES
+#include <cryptopp/filters.h>        // Для StreamTransformationFilter
+#include <cryptopp/hex.h>            // Для HexEncoder/HexDecoder
+#include <cryptopp/files.h>          // Для работы с файлами
+#include <cryptopp/osrng.h>          // Для генерации случайных чисел
+#include <cryptopp/sha.h>            // Для SHA256
+#include <cryptopp/modes.h>          // Для CBC_Mode
+
+using namespace CryptoPP;
+
+// Функция для генерации ключа из пароля
+void deriveKey(const std::string& password, SecByteBlock& key, SecByteBlock& iv) {
+    SHA256 hash;
+    AutoSeededRandomPool prng;
+
+    // Генерация ключа из пароля
+    std::string hashResult;
+    StringSource(password, true, new HashFilter(hash, new StringSink(hashResult)));
+
+    // Копируем первые байты хэша для ключа и IV
+    memcpy(key, hashResult.data(), key.size());
+    prng.GenerateBlock(iv, iv.size()); // Генерируем случайный IV
+}
+
+// Функция шифрования
+void encrypt(const std::string& inputFile, const std::string& outputFile, const std::string& password) {
+    SecByteBlock key(AES::DEFAULT_KEYLENGTH); // 16 байт
+    SecByteBlock iv(AES::BLOCKSIZE);          // 16 байт
+
+    // Генерация ключа и IV
+    deriveKey(password, key, iv);
+
+    // Шифрование файла
+    CBC_Mode<AES>::Encryption encryptor(key, key.size(), iv);
+    FileSource(inputFile.c_str(), true,
+               new StreamTransformationFilter(encryptor,
+                                              new FileSink(outputFile.c_str())));
+
+    std::cout << "File encrypted successfully: " << outputFile << std::endl;
+}
+
+// Функция расшифрования
+void decrypt(const std::string& inputFile, const std::string& outputFile, const std::string& password) {
+    SecByteBlock key(AES::DEFAULT_KEYLENGTH); // 16 байт
+    SecByteBlock iv(AES::BLOCKSIZE);          // 16 байт
+
+    // Генерация ключа и IV
+    deriveKey(password, key, iv);
+
+    // Расшифрование файла
+    CBC_Mode<AES>::Decryption decryptor(key, key.size(), iv);
+    FileSource(inputFile.c_str(), true,
+               new StreamTransformationFilter(decryptor,
+                                              new FileSink(outputFile.c_str())));
+
+    std::cout << "File decrypted successfully: " << outputFile << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 5) {
+        std::cerr << "Usage: " << argv[0] << " <encrypt/decrypt> <inputFile> <outputFile> <password>" << std::endl;
+        return 1;
+    }
+
+    std::string mode = argv[1];
+    std::string inputFile = argv[2];
+    std::string outputFile = argv[3];
+    std::string password = argv[4];
+
+    if (mode == "encrypt") {
+        encrypt(inputFile, outputFile, password);
+    } else if (mode == "decrypt") {
+        decrypt(inputFile, outputFile, password);
+    } else {
+        std::cerr << "Unknown mode: " << mode << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
