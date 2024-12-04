@@ -1,14 +1,14 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -O2
+CXXFLAGS = -g -Wall -std=c++11
 LDFLAGS = -lcryptopp
 
-TARGET = cipher_program
-SRC = cipher_program.cpp
+TARGET = main
+SRCS = main.cpp
 
 all: $(TARGET)
 
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC) $(LDFLAGS)
+$(TARGET): $(SRCS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRCS) $(LDFLAGS)
 
 clean:
 	rm -f $(TARGET)
